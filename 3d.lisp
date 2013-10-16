@@ -5,11 +5,6 @@
 		 (y :initarg :y)
 		 (z :initarg :z)))
 
-; directed edges
-(defclass edge ()
-	((src :initarg :src)
-	 (dest :initarg :dest)))
-
 ; face
 (defclass face ()
 	((vertex :initarg :vertex)))
@@ -21,10 +16,6 @@
 	(the number z)
 	(make-instance 'v3 :x x :y y :z z))
 
-(defun make-edge (src dest)
-	(the v3 src)
-	(the v3 dest)
-	(make-instance 'edge :src src :dest dest))
 
 (defun make-face (&rest vertex)
 	(when (null vertex) 
@@ -98,10 +89,6 @@
 (defmethod print-object ((v v3) stream)
 	(with-slots (x y z) v
 		(format stream "#v(~a ~a ~a)" x y z)))
-
-(defmethod print-object ((e edge) stream)
-	(with-slots (src dest) e
-		(format stream "#edge(~a to ~a)" src dest)))
 
 (defmethod print-object ((f face) stream)
 	(with-slots (vertex) f
