@@ -22,4 +22,3 @@
 (translate! (car *new-faces*) (scale! (dup *z*) 2))
 
 (print (cons *face* *new-faces*))
-
