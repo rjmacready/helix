@@ -19,7 +19,7 @@ glue.a: glue.lisp
 	    -eval '(asdf:make-build :glue :type :static-library :move-here "./$@")' \
 	    -eval '(quit)'
 
-$(OUTFILE): main.cc glue.a
+$(OUTFILE): main.cc exporting.h exporting.cc glue.a
 	$(CC) `ecl-config --cflags` -o $@ $^ `ecl-config --ldflags` -lecl -lassimp
 
 clean:

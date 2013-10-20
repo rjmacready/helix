@@ -1,18 +1,104 @@
+(defpackage :3d
+	(:use :cl)
+	(:export
+	 ; constants
+	 :epsilon
+	 ; special vars
+	 :*selected*
+	 :*v3*
+	 :*face*
+	 :*mesh*
+	 ; helper macros
+	 :with-mesh
+	 :with-face
+	 :with-v3
+	 ; classes
+	 :v3
+	 :face
+	 :mesh
+	 ; accessors
+	 :v3-x
+	 :v3-y
+	 :v3-z
+	 :mesh-faces
+	 :mesh-vertices
+	 :face-vertices
+	 ; helper construction functions
+	 :make-v3
+	 :make-face
+	 :make-mesh
+	 ; helper functions
+	 :*add-faces
+	 ; functions
+	 :extrude
+	 :dup
+	 :translate!
+	 :scale!
+	 ))
+
+(in-package :3d)
+
+(defconstant EPSILON 0.000001 
+	"Math on common lisp looks horrible ... sqrt(2) has only 7 decimal places!")
+
+(defvar *selected* nil 
+	"The 'selected' v3/face/mesh. Useful as default for the generic functions.")
+(defvar *v3* nil
+	"The 'selected' v3.")
+(defvar *face* nil
+	"The 'selected' face.")
+(defvar *mesh* nil
+	"The 'selected' mesh.")
+
+(defmacro with-mesh (mesh &rest body)
+	`(let* ((*mesh* ,mesh)
+					(*selected* *mesh*))
+		 ,@body))
+
+(defmacro with-face (face &rest body)
+	`(let* ((*face* ,face)
+					(*selected* *face*))
+		 ,@body))
+
+(defmacro with-v3 (v3 &rest body)
+	`(let* ((*v3* ,v3)
+					(*selected* *v3*))
+		 ,@body))
+
+; on hold!
+;(defmacro with-vertices (defs &rest body)
+;	`(let (,@(mapcar (lambda (n)
+;										 (let ((hd (car n))
+;													 (tl (cdr n)))
+;											 (list hd nil))) defs))
+;		 ,@body))
 
 ; a 3d point
 (defclass v3 ()
-		((x :initarg :x)
-		 (y :initarg :y)
-		 (z :initarg :z)))
+		((x :initarg :x :reader v3-x)
+		 (y :initarg :y :reader v3-y)
+		 (z :initarg :z :reader v3-z)))
 
 ; face
 (defclass face ()
-	((vertex :initarg :vertex)))
+	((vertex :initarg :vertex :reader face-vertices)))
 
 ; a collection of faces
 (defclass mesh ()
-	((faces :initarg :faces)))
+	((faces :initarg :faces :reader mesh-faces)))
 
+(defun float= (f1 f2)
+	(< (abs (- f1 f2)) EPSILON))
+
+(defun *add-faces (&rest faces-to-add)
+	(the list faces-to-add)
+	(with-slots (faces) *mesh*
+		(setf faces (append faces faces-to-add))))
+
+(defun *add-faces-l (faces-to-add)
+	(the list faces-to-add)
+	(with-slots (faces) *mesh*
+		(setf faces (append faces faces-to-add))))
 
 (defun make-v3 (&key (x 0) (y 0) (z 0))
 	(the number x)
@@ -20,8 +106,8 @@
 	(the number z)
 	(make-instance 'v3 :x x :y y :z z))
 
-
 (defun make-face (&rest vertex)
+	"Make a face. Each face as a separate argument."
 	(when (null vertex) 
 		(error "Is empty"))
 	(when (< (length vertex) 3) 
@@ -31,6 +117,7 @@
 	(make-instance 'face :vertex vertex))
 
 (defun make-face-l (vertex)
+	"Make a face from a list of vertices"
 	(the list vertex)
 
 	(when (null vertex) 
@@ -41,11 +128,9 @@
 		(error "Not a list of v3"))
 	(make-instance 'face :vertex vertex))
 
-
 (defun make-mesh (&rest faces)
-	(when (null faces) 
-		(error "Is empty"))
-	(when (find-if-not (lambda (n) (typep n 'face)) faces)
+	"Make a mesh. Each face as a separate argument."
+	(when (or (not (listp faces)) (find-if-not (lambda (n) (typep n 'face)) faces))
 		(error "Not a list of face"))
 	(make-instance 'mesh :faces faces))
 
@@ -75,15 +160,23 @@
 
 																					)))
 
+(defgeneric mesh-vertices (m)
+	(:documentation "All distinct vertices in a mesh."))
+
+(defmethod mesh-vertices ((m mesh))
+	"All distinct vertices in a mesh. The test for distinctness is componentwise: meaning
+that if we create manually two instances of #v(), those will be the same vertice."
+	(let ((ls nil))
+		(with-slots (faces) m
+			(loop for f in faces do
+					 (with-slots (vertex) f
+						 (loop for v in vertex do 
+									(when (not (member v ls :test #'equal-v3))
+										(setf ls (append ls (list v)))))))
+			ls)))
+
 (defgeneric scale! (v a)
 	(:documentation "Scale a vector <v> by <a> (either a number or another vector)"))
-
-(defgeneric translate! (v a)
-	(:documentation "Translate a vector <v> by <a> (either a number or another vector)"))
-
-(defgeneric dup (s)
-	(:documentation "Duplicate some <s>. No references reused."))
-
 
 (defmethod scale! ((this v3) (n number))
 	(with-slots (x y z) this
@@ -98,6 +191,16 @@
 		(setf y (* (slot-value v 'y) y))
 		(setf z (* (slot-value v 'z) z))
 		this))
+
+(defun equal-v3 (a b)
+	(the v3 a)
+	(the v3 b)
+	(and (equal (slot-value a 'x) (slot-value b 'x))
+			 (equal (slot-value a 'y) (slot-value b 'y))
+			 (equal (slot-value a 'z) (slot-value b 'z))))
+
+(defgeneric translate! (v a)
+	(:documentation "Translate a vector <v> by <a> (either a number or another vector)"))
 
 (defmethod translate! ((this v3) (n number))
 	(with-slots (x y z) this
@@ -125,6 +228,45 @@
 	(with-slots (vertex) f
 		(format stream "#face(~{~a~^ ~})" vertex)))
 
+(defmethod print-object ((m mesh) stream)
+	(with-slots (faces) m
+		(format stream "#mesh(~{~a~^ ~})" faces)))
+
+(defun dot-product (v1 v2)
+	(the v3 v1)
+	(the v3 v2)
+	(with-slots (x y z) v1
+		(let ((x2 (slot-value v2 'x))
+					(y2 (slot-value v2 'y))
+					(z2 (slot-value v2 'z)))
+			(+ (* x x2) (* y y2) (* z z2)))))
+
+(defun cross-product (v1 v2)
+	(the v3 v1)
+	(the v3 v2)
+	(with-slots (x y z) v1
+		(let ((x2 (slot-value v2 'x))
+					(y2 (slot-value v2 'y))
+					(z2 (slot-value v2 'z)))
+			(make-v3 
+			 :x (- (* y z2) (* z y2))
+			 :y (- (* z x2) (* x z2)) 
+			 :z (- (* x y2) (* y x2))))))
+
+(defun magnitude (v)
+	(the v3 v)
+	(sqrt (dot-product v v)))
+
+(defun magnitude1p (p)
+	(the v3 p)
+	(float= 1 (magnitude p)))
+
+(defgeneric dup (s)
+	(:documentation "Duplicate some <s>. No references reused."))
+
+(defun *dup ()
+	"Duplicate the selected object"
+	(dup *selected*))
 
 (defmethod dup ((v v3))
 	(with-slots (x y z) v
@@ -134,10 +276,10 @@
 	(with-slots (vertex) f
 		(make-face-l (mapcar #'dup vertex))))
 
-
 ; create unit vector from ... a vector
-(defun normalize (vec)
-	nil)
+(defun normalize! (vec)
+	(the v3 vec)
+	(scale! vec (/ 1 (magnitude vec))))
 
 ; TODO 
 ; extrude a face, with the "dupped" vertices connected. 
@@ -206,4 +348,3 @@
 ; they can "fit". its possible that there's no solution.
 (defun merge-faces ()
 	nil)
-
