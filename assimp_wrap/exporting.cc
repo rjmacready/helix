@@ -44,7 +44,11 @@ int to_double(cl_object o, double *r) {
 	return 0;
 }
 
-inline double dequals(double d1, double d2, double epsilon) {
+double epsilon = 0.000001; // 0.0000001
+inline double dequals(double d1, double d2) {
+	//	cout << "dequals("<<d1<<", "<<d2<<", "<<epsilon<<") => "<< 
+	//		d1 - d2 << " => "<< fabs(d1 - d2) <<": "<< 
+	//		(fabs(d1 - d2) <= epsilon)<<"\n";
 	return (fabs(d1 - d2) <= epsilon);
 }
 
@@ -164,11 +168,11 @@ void export_scene_impl(cl_object obj, exporting_info* info) {
 					for(i_mesh_vert = 0;
 							i_mesh_vert < n_verts;
 							i_mesh_vert++) {
-						if(dequals(vertices[i_mesh_vert].x, x, 0.0000001)
+						if(dequals(vertices[i_mesh_vert].x, x)
 							 &&
-							 dequals(vertices[i_mesh_vert].y, y, 0.0000001)
+							 dequals(vertices[i_mesh_vert].y, y)
 							 &&
-							 dequals(vertices[i_mesh_vert].z, z, 0.0000001)) {
+							 dequals(vertices[i_mesh_vert].z, z)) {
 							found = 1;
 							cout << "Found vertice "<<i_face_vert<<" at "<<i_mesh_vert<<"\n";
 							faces[i_face].mIndices[i_face_vert] = (unsigned int) i_mesh_vert;

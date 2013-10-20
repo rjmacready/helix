@@ -27,6 +27,7 @@
 	 :make-v3
 	 :make-face
 	 :make-mesh
+	 :to-v3
 	 ; helper functions
 	 :*add-faces
 	 ; functions
@@ -34,6 +35,8 @@
 	 :dup
 	 :translate!
 	 :scale!
+	 ; other helpers
+	 :range
 	 ))
 
 (in-package :3d)
@@ -78,6 +81,9 @@
 		((x :initarg :x :reader v3-x)
 		 (y :initarg :y :reader v3-y)
 		 (z :initarg :z :reader v3-z)))
+
+(defgeneric to-v3 (any-pt)
+	(:documentation "Converts an point in an arbitrary coordinate system to a v3"))
 
 ; face
 (defclass face ()
