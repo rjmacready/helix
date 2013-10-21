@@ -6,7 +6,8 @@
 	 ; helper
 ;	 :to-v3
 	 :dup
-	 :inc-phi*
+	 :inc-phi!
+	 :inc-theta!
 	 ; helper construction functions
 	 :make-circle
 	 ))
@@ -43,6 +44,11 @@
 (defun inc-phi! (i inc)
 	(with-slots (phi) i
 		(setf phi (+ phi inc))
+		i))
+
+(defun inc-theta! (i inc)
+	(with-slots (theta) i
+		(setf theta (+ theta inc))
 		i))
 
 (defmethod print-object ((p sph-pt) stream)
