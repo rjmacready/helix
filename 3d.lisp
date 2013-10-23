@@ -26,15 +26,18 @@
 	 ; helper construction functions
 	 :make-v3
 	 :make-face
+	 :make-face-l
 	 :make-mesh
 	 :to-v3
 	 ; helper functions
 	 :*add-faces
+	 :*add-faces-l
 	 ; functions
 	 :extrude
 	 :dup
 	 :translate!
 	 :scale!
+	 :magnitude
 	 ; other helpers
 	 :range
 	 ))
