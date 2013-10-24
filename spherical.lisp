@@ -17,7 +17,7 @@
 ; stuff using spherical coordinates
 ; angles must be in rads
 
-(defclass sph-pt ()
+(defclass sph-pt (3d:pt)
 	((r :initarg :r) 
 	 (theta :initarg :theta)
 	 (phi :initarg :phi)))
@@ -55,10 +55,24 @@
 	(with-slots (r theta phi) p
 		(format stream "#sph-pt(r=~a theta=~a phi=~a)" r theta phi)))
 
+; it should return a collection of edges.
+; this collection should be "closed" (as in, the last 
+; generated vertice should connect with <src>)
 (defun make-circle (src segments)
 	(unless (>= segments 3)
 		(error "give at least 3 segments!"))
-	(let ((inc (/ (* PI 2) segments)))
-		(loop for x from 1 upto (1- segments)
-				 collect (inc-phi! (dup src) (* x inc)))))
 
+	(let* ((inc (/ (* PI 2) segments))
+				 (generated (loop for x from 1 upto (1- segments)
+											 collect (inc-phi! (dup src) (* x inc))))
+				 (edges (loop for sublist-gen on generated
+									 collect (make-instance 
+														'3d:edge 
+														:src (first sublist-gen) 
+														:dest (let ((sec (second sublist-gen)))
+																		(if (null sec)
+																				src
+																				sec)))
+										 )))
+		
+		(make-instance '3d:edge-loop :ls edges)))

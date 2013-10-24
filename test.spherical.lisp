@@ -4,8 +4,20 @@
 (defparameter *start* 
 	(make-instance '3d.spherical:sph-pt :r 10 :theta (/ PI 2) :phi 0))
 
-(defun make-circle ()
-	(cons *start* (3d.spherical:make-circle *start* 60)))
+;(print (3d.spherical:make-circle *start* 60))
+
+;(defun make-circle ()
+;	(cons *start* (3d.spherical:make-circle *start* 60)))
+
+(3d:with-mesh (3d:make-mesh)
+	(let ((base (3d.spherical:make-circle *start* 60)))
+		(multiple-value-bind (extruded new-verts) (3d:extrude base)
+			(3d:*add-faces-l extruded)
+			(mapc (lambda (f)
+							(3d.spherical:inc-theta! f (/ PI -30))) new-verts)
+
+			(print 3d:*mesh*))))
+
 
 (3d:with-mesh (3d:make-mesh)
    ; make verts
@@ -59,6 +71,6 @@
 	;												(3d:to-v3 (second c_v)))))
 	;			 ))
 	
-	;(print 3d:*mesh*)
-	(export-scene 3d:*mesh*)
+	(print 3d:*mesh*)
+	;(export-scene 3d:*mesh*)
 	)

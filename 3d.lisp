@@ -13,9 +13,12 @@
 	 :with-face
 	 :with-v3
 	 ; classes
+	 :pt
 	 :v3
 	 :face
 	 :mesh
+	 :edge
+	 :edge-loop
 	 ; accessors
 	 :v3-x
 	 :v3-y
@@ -79,14 +82,33 @@
 ;											 (list hd nil))) defs))
 ;		 ,@body))
 
+(defclass edge-loop ()
+	((ls :initarg :ls)))
+
+; an edge
+; this will not be exported, but will be useful for
+; extrusions and whatnot.
+(defclass edge ()
+	((src :initarg :src) 
+	 (dest :initarg :dest)))
+
+; an abstract point.
+(defclass pt () ())
+
 ; a 3d point
-(defclass v3 ()
+(defclass v3 (pt)
 		((x :initarg :x :reader v3-x)
 		 (y :initarg :y :reader v3-y)
 		 (z :initarg :z :reader v3-z)))
 
 (defgeneric to-v3 (any-pt)
 	(:documentation "Converts an point in an arbitrary coordinate system to a v3"))
+
+(defmethod to-v3 ((p pt))
+	(error (format nil "You forgot to implement 3d:to-v3 for ~a" (type-of p))))
+
+(defmethod to-v3 ((p v3))
+	p)
 
 ; face
 (defclass face ()
@@ -121,8 +143,9 @@
 		(error "Is empty"))
 	(when (< (length vertex) 3) 
 		(error "Not enough vertex"))
-	(when (find-if-not (lambda (n) (typep n 'v3)) vertex)
-		(error "Not a list of v3"))
+	(let ((err (find-if-not (lambda (n) (subtypep (type-of n) 'pt)) vertex)))
+		(when err
+			(error (format nil "Not a list of pt (~a)" err))))
 	(make-instance 'face :vertex vertex))
 
 (defun make-face-l (vertex)
@@ -133,8 +156,9 @@
 		(error "Is empty"))
 	(when (< (length vertex) 3) 
 		(error "Not enough vertex"))
-	(when (find-if-not (lambda (n) (typep n 'v3)) vertex)
-		(error "Not a list of v3"))
+	(let ((err (find-if-not (lambda (n) (subtypep (type-of n) 'pt)) vertex)))
+		(when err
+			(error (format nil "Not a list of pt (~a)" err))))
 	(make-instance 'face :vertex vertex))
 
 (defun make-mesh (&rest faces)
@@ -229,6 +253,15 @@ that if we create manually two instances of #v(), those will be the same vertice
 	(with-slots (vertex) this
 		(mapc (lambda (vert) (translate! vert v)) vertex)))
 
+
+(defmethod print-object ((e edge) stream)
+	(with-slots (src dest) e
+		(format stream "#edge(:src ~a :dest ~a)" src dest)))
+
+(defmethod print-object ((e edge-loop) stream)
+	(with-slots (ls) e
+		(format stream "#edge-loop(~{~a~^ ~})" ls)))
+
 (defmethod print-object ((v v3) stream)
 	(with-slots (x y z) v
 		(format stream "#v(~a ~a ~a)" x y z)))
@@ -289,6 +322,32 @@ that if we create manually two instances of #v(), those will be the same vertice
 (defun normalize! (vec)
 	(the v3 vec)
 	(scale! vec (/ 1 (magnitude vec))))
+
+; extrude an edge loop
+(defmethod extrude ((original edge-loop))
+	(with-slots (ls) original
+		(let* ((new-verts nil)
+					 (duped (mapcar (lambda (e)
+														(with-slots (src dest) e
+															(let ((dup-src (dup src))
+																		(dup-dest (dup dest)))
+																(setf new-verts (cons dup-dest
+																											(cons dup-src
+																														new-verts)))
+																(make-instance 'edge 
+																							 :src  dup-src
+																							 :dest dup-dest)))) ls)))
+			(values 
+			 (mapcar (lambda (orig-edge new-edge)
+								 (let ((orig-edge-src (slot-value orig-edge 'src))
+											 (orig-edge-dest (slot-value orig-edge 'dest))
+											 (new-edge-src (slot-value new-edge 'src))
+											 (new-edge-dest (slot-value new-edge 'dest)))
+									 (make-face-l (list orig-edge-src
+																			orig-edge-dest
+																			new-edge-dest
+																			new-edge-src)))) ls duped)
+			 (nreverse new-verts)))))
 
 ; TODO 
 ; extrude a face, with the "dupped" vertices connected. 
