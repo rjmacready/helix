@@ -38,7 +38,8 @@ int to_double(cl_object o, double *r) {
 	} else if(ECL_FIXNUMP(o)) {
 		*r = (double) fix(o);
 	} else {
-		cout << "Unexpected\n";
+		cout << "Unexpected type\n";
+		cl_print(1, o);
 		exit(4);
 	} 
 	return 0;
@@ -68,14 +69,18 @@ void export_scene_impl(cl_object obj, exporting_info* info) {
 
 	// extract faces
 	cout << "init faces\n";
-	
+
+	cout << "fetch faces\n";
 	cl_object call_faces = CONS(c_string_to_object("3d:mesh-faces"), CONS(obj, Cnil));
 	cl_object r_faces = cl_safe_eval(call_faces, Cnil, Cnil);
 	int n_faces = fix(cl_length(r_faces));
-	
+
+	cout << "fetch verts\n";	
 	cl_object call_verts = CONS(c_string_to_object("3d:mesh-vertices"), CONS(obj, Cnil));
 	cl_object r_verts = cl_safe_eval(call_verts, Cnil, Cnil);
 	int n_verts = fix(cl_length(r_verts));
+
+	cout << "done fetching!\n";	
 
 	cl_object face_vertices = c_string_to_object("3d:face-vertices");
 
@@ -83,7 +88,16 @@ void export_scene_impl(cl_object obj, exporting_info* info) {
 	cl_object v3_y = c_string_to_object("3d:v3-y");
 	cl_object v3_z = c_string_to_object("3d:v3-z");
 
+	if(0 == n_faces) {
+		cout << "Wait, no faces???\n";
+		exit(7);
+	}
 	cout << n_faces <<" faces\n";
+	
+	if(0 == n_verts) {
+		cout << "Wait, no verts???\n";
+		exit(7);
+	}
 	cout << n_verts << " distinct verts\n";
 
 	// the constructor is hidden from us, 
@@ -119,10 +133,11 @@ void export_scene_impl(cl_object obj, exporting_info* info) {
 			vertices[i_vert].x = x;
 			vertices[i_vert].y = y;
 			vertices[i_vert].z = z;
-			cout << "#v("<<x<<", "<<y<<", "<<z<<")\n";
+			//			cout << "#v("<<x<<", "<<y<<", "<<z<<")\n";
 		}
 	}
 	
+	cout << "faces\n";
 	aiFace* faces = mesh->mFaces = new aiFace[ mesh->mNumFaces = n_faces];
 
 	{

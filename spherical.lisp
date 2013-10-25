@@ -63,16 +63,7 @@
 		(error "give at least 3 segments!"))
 
 	(let* ((inc (/ (* PI 2) segments))
-				 (generated (loop for x from 1 upto (1- segments)
-											 collect (inc-phi! (dup src) (* x inc))))
-				 (edges (loop for sublist-gen on generated
-									 collect (make-instance 
-														'3d:edge 
-														:src (first sublist-gen) 
-														:dest (let ((sec (second sublist-gen)))
-																		(if (null sec)
-																				src
-																				sec)))
-										 )))
+				 (generated (loop for x from 0 upto (1- segments)
+											 collect (inc-phi! (dup src) (* x inc)))))
 		
-		(make-instance '3d:edge-loop :ls edges)))
+		(make-and-connect-edge-loop-l generated)))

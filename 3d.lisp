@@ -31,6 +31,8 @@
 	 :make-face
 	 :make-face-l
 	 :make-mesh
+	 :make-and-connect-edge-loop-l
+	 :make-edge-loop-l
 	 :to-v3
 	 ; helper functions
 	 :*add-faces
@@ -112,7 +114,12 @@
 
 ; face
 (defclass face ()
-	((vertex :initarg :vertex :reader face-vertices)))
+	((vertex :initarg :vertex)))
+
+(defgeneric face-vertices (f) (:documentation "External reader for 3d:face:vertex"))
+(defmethod face-vertices ((f face))
+	(with-slots (vertex) f
+		(mapcar #'to-v3 vertex)))
 
 ; a collection of faces
 (defclass mesh ()
@@ -204,8 +211,9 @@ that if we create manually two instances of #v(), those will be the same vertice
 			(loop for f in faces do
 					 (with-slots (vertex) f
 						 (loop for v in vertex do 
-									(when (not (member v ls :test #'equal-v3))
-										(setf ls (append ls (list v)))))))
+									(let ((v (to-v3 v)))
+										(when (not (member v ls :test #'equal-v3))
+											(setf ls (append ls (list v))))))))
 			ls)))
 
 (defgeneric scale! (v a)
@@ -324,21 +332,28 @@ that if we create manually two instances of #v(), those will be the same vertice
 	(scale! vec (/ 1 (magnitude vec))))
 
 ; extrude an edge loop
+; returns:
+; - list of faces created by the extrusion
+; - list of vertex created by the extrusion
+; - edge-loop of the vertex created by the extrusion
 (defmethod extrude ((original edge-loop))
-	(with-slots (ls) original
-		(let* ((new-verts nil)
-					 (duped (mapcar (lambda (e)
-														(with-slots (src dest) e
-															(let ((dup-src (dup src))
-																		(dup-dest (dup dest)))
-																(setf new-verts (cons dup-dest
-																											(cons dup-src
-																														new-verts)))
-																(make-instance 'edge 
-																							 :src  dup-src
-																							 :dest dup-dest)))) ls)))
+	(let ((original-edges (slot-value original 'ls)))
+; to duplicate the edge-loop, first of all 
+; we must duplicate the
+; vertices, and then create the new edge loop
+;		(print `(original-edges ,original-edges))
+		(let* ((new-verts (mapcar (lambda (n)
+														(the edge n)
+														(dup (slot-value n 'src)))
+													original-edges))
+					 (duped-edges (make-and-connect-edge-l new-verts)))
+;			(print `(new-verts ,new-verts))
+;			(print `(original ,(length original-edges)))
+;			(print `(duped ,(length duped-edges)))
 			(values 
 			 (mapcar (lambda (orig-edge new-edge)
+								 (the edge orig-edge)
+								 (the edge new-edge)
 								 (let ((orig-edge-src (slot-value orig-edge 'src))
 											 (orig-edge-dest (slot-value orig-edge 'dest))
 											 (new-edge-src (slot-value new-edge 'src))
@@ -346,8 +361,39 @@ that if we create manually two instances of #v(), those will be the same vertice
 									 (make-face-l (list orig-edge-src
 																			orig-edge-dest
 																			new-edge-dest
-																			new-edge-src)))) ls duped)
-			 (nreverse new-verts)))))
+																			new-edge-src)))) original-edges duped-edges)
+			 new-verts
+			 (make-and-connect-edge-loop-l new-verts)))))
+
+(defun make-edge-l (ls-vertex)
+	"makes a list of edges from a list of vertex. dont connect."
+	(the list ls-vertex)
+	(loop for (fst . rest) on ls-vertex
+		 if (not (null rest))
+		 collect 											
+			 (make-instance 'edge 
+											:src fst 
+											:dest (car rest))))
+
+(defun make-and-connect-edge-l (ls-vertex)
+	"makes a list of edges from a list of vertex. connect."
+	(the list ls-vertex)
+	(loop for (fst . rest) on ls-vertex
+		 collect 
+			 (make-instance 'edge 
+											:src fst 
+											:dest (if (null rest)
+																(car ls-vertex)
+																(car rest)))))
+
+(defun make-edge-loop-l (ls-vertex)
+	"make an edge loop from a list of vertex. no effort is taken to connect them!"
+	(the list ls-vertex)
+	(make-instance 'edge-loop :ls (make-edge-l ls-vertex)))
+
+(defun make-and-connect-edge-loop-l (ls-vertex)
+	"make an edge loop from a list of vertex. an edge loop is closed so this will close with the first vertice"
+	(make-instance 'edge-loop :ls (make-and-connect-edge-l ls-vertex)))
 
 ; TODO 
 ; extrude a face, with the "dupped" vertices connected. 
