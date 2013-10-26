@@ -122,14 +122,32 @@ void export_scene_impl(cl_object obj, exporting_info* info) {
 			
 			cl_object o = ECL_CONS_CAR(cons_vert);
 			cl_object __o = cl_safe_eval(CONS(v3_x, CONS(o, Cnil)), Cnil, Cnil);
-			
-			// TODO FIXME only works well for integers!!!			
-			// extract x y z
+						
 			double x, y, z;
 			to_double(cl_safe_eval(CONS(v3_x, CONS(o, Cnil)), Cnil, Cnil), &x);
 			to_double(cl_safe_eval(CONS(v3_y, CONS(o, Cnil)), Cnil, Cnil), &y);
 			to_double(cl_safe_eval(CONS(v3_z, CONS(o, Cnil)), Cnil, Cnil), &z);
 
+			// there are a lot of free vertex. this is because we use dequals
+			// to search for vertex, and some close vertex will be used instead
+			// of the "real one"
+			// check if vertice is already in the list, use our dequals
+			int found = 0;
+			for(int i_i_vert=0; i_i_vert < i_vert; ++i_i_vert) {
+				if(dequals(vertices[i_i_vert].x, x)
+					 &&
+					 dequals(vertices[i_i_vert].y, y)
+					 &&
+					 dequals(vertices[i_i_vert].z, z)) {
+					found = 1;
+					break;
+				}
+			}
+			
+			if(found) {
+				continue;
+			}
+			
 			vertices[i_vert].x = x;
 			vertices[i_vert].y = y;
 			vertices[i_vert].z = z;
