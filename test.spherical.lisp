@@ -6,15 +6,26 @@
 
 (defun make-stuff ()
 	(3d:with-mesh (3d:make-mesh)
-		(let ((base (3d.spherical:make-circle *start* 60)))
+		(let* ((base (3d.spherical:make-circle *start* 60))
+					 (base-c base))
+			
 			(dotimes (v 30)
-				
-				(multiple-value-bind (extruded new-verts new-edge-loop) (3d:extrude base)
+				(multiple-value-bind (extruded new-verts new-edge-loop) (3d:extrude base-c)
 					
 					(3d:*add-faces-l extruded)
 					(mapc (lambda (f)
 									(3d.spherical:inc-theta! f (/ PI -30))) new-verts)
-					(setf base new-edge-loop))))
+					(setf base-c new-edge-loop)))
+			
+			(dotimes (v 30)
+				(multiple-value-bind (extruded new-verts new-edge-loop) (3d:extrude base)
+					
+					(3d:*add-faces-l extruded)
+					(mapc (lambda (f)
+									(3d.spherical:inc-theta! f (/ PI 30))) new-verts)
+					(setf base new-edge-loop)))
+
+			)
 		
 ;			(print 3d:*mesh*)
 		(export-scene 3d:*mesh*)

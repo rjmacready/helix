@@ -11,8 +11,11 @@
 		(3d:with-face (3d:make-face a b c)
 			(3d:*add-faces 3d:*face*)
 
-			(destructuring-bind (extruded fa fb fc) (3d:extrude 3d:*face*)
-				(3d:translate! extruded (3d:scale! (3d:dup *Z*) 1.5))
-				(3d:*add-faces extruded fa fb fc)))
-		
-		(export-scene 3d:*mesh*)))
+			(multiple-value-bind (faces extruded facing) (3d:extrude 3d:*face*)
+				(declare (ignore extruded))
+				(3d:translate! facing (3d:scale! (3d:dup *Z*) 1.5))
+				(3d:*add-faces-l faces)
+				(3d:*add-faces facing))
+
+		(export-scene 3d:*mesh*)
+		)))

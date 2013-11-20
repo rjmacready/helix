@@ -1,6 +1,9 @@
 (defpackage :3d
 	(:use :cl)
 	(:export
+	 ; matrix stuff
+	 :cross-product
+	 :dot-product
 	 ; constants
 	 :epsilon
 	 ; special vars
@@ -30,6 +33,7 @@
 	 :make-v3
 	 :make-face
 	 :make-face-l
+	 :make-face-edge-loop
 	 :make-mesh
 	 :make-and-connect-edge-loop-l
 	 :make-edge-loop-l
@@ -167,6 +171,14 @@
 		(when err
 			(error (format nil "Not a list of pt (~a)" err))))
 	(make-instance 'face :vertex vertex))
+
+(defun make-face-edge-loop (e-loop)
+	(the edge-loop e-loop)
+	(make-face-l (mapcar 
+								(lambda (n)
+									(the edge n)
+									(slot-value n 'src))
+								(slot-value e-loop 'ls))))
 
 (defun make-mesh (&rest faces)
 	"Make a mesh. Each face as a separate argument."
@@ -331,25 +343,29 @@ that if we create manually two instances of #v(), those will be the same vertice
 	(the v3 vec)
 	(scale! vec (/ 1 (magnitude vec))))
 
+(defgeneric extrude (s)
+	(:documentation ""))
+
+(defun edge-loop-dup-vertex (edge-loop)
+	(with-slots (ls) edge-loop
+		(mapcar (lambda (n)
+							(the edge n)
+							(dup (slot-value n 'src)))
+						ls)))
+
 ; extrude an edge loop
 ; returns:
 ; - list of faces created by the extrusion
 ; - list of vertex created by the extrusion
 ; - edge-loop of the vertex created by the extrusion
 (defmethod extrude ((original edge-loop))
-	(let ((original-edges (slot-value original 'ls)))
 ; to duplicate the edge-loop, first of all 
 ; we must duplicate the
 ; vertices, and then create the new edge loop
 ;		(print `(original-edges ,original-edges))
-		(let* ((new-verts (mapcar (lambda (n)
-														(the edge n)
-														(dup (slot-value n 'src)))
-													original-edges))
-					 (duped-edges (make-and-connect-edge-l new-verts)))
-;			(print `(new-verts ,new-verts))
-;			(print `(original ,(length original-edges)))
-;			(print `(duped ,(length duped-edges)))
+		(let* ((new-verts (edge-loop-dup-vertex original))
+					 (duped-edges (make-and-connect-edge-l new-verts))
+					 (original-edges (slot-value original 'ls)))
 			(values 
 			 (mapcar (lambda (orig-edge new-edge)
 								 (the edge orig-edge)
@@ -363,7 +379,17 @@ that if we create manually two instances of #v(), those will be the same vertice
 																			new-edge-dest
 																			new-edge-src)))) original-edges duped-edges)
 			 new-verts
-			 (make-and-connect-edge-loop-l new-verts)))))
+			 (make-and-connect-edge-loop-l new-verts))))
+
+; extrude a face
+; returns:
+; - list of faces created by the extrusion ("side faces")
+; - list of vertex created by the extrusion 
+; - face of the vertex created by the extrusion ("facing face")
+(defmethod extrude ((original face))
+	(multiple-value-bind (faces vertex edge-loop) 
+			(extrude (make-and-connect-edge-loop-l (slot-value original 'vertex)))
+		(values faces vertex (make-face-edge-loop edge-loop))))
 
 (defun make-edge-l (ls-vertex)
 	"makes a list of edges from a list of vertex. dont connect."
@@ -401,32 +427,32 @@ that if we create manually two instances of #v(), those will be the same vertice
 ; return a list with:
 ; - created opposing face
 ; + a face for each pair of vertices
-(defmethod extrude ((original face))
-	(let ((opposed (dup original)))
-		; TODO - rotate opposed so that it points outwards.
-		; TODO - or flip normal. maybe we need to attach normals to faces.
-		(let ((v-or (slot-value original 'vertex))
-					(v-op (slot-value opposed 'vertex)))
-
-			; 0-1
-			; 1-2
-			; ...
-			; n-0
-			(let ((v-or-2 (append v-or (list (car v-or))))
-						(v-op-2 (append v-op (list (car v-op)))))
-
-				(cons 
-				 opposed
-				 (loop 
-						for ctrl in (range 0 (length v-or))
-						for x on v-or-2
-						for y on v-op-2
-
-							; FIXME
-							; swap the order of the y-face vertices.
-							; maybe will be dropped after we flip the face?
-						collect (make-face-l (list (first x) (second x) (second y) (first y)))
-							))))))
+;(defmethod extrude ((original face))
+;	(let ((opposed (dup original)))
+;		; TODO - rotate opposed so that it points outwards.
+;		; TODO - or flip normal. maybe we need to attach normals to faces.
+;		(let ((v-or (slot-value original 'vertex))
+;					(v-op (slot-value opposed 'vertex)))
+;
+;			; 0-1
+;			; 1-2
+;			; ...
+;			; n-0
+;			(let ((v-or-2 (append v-or (list (car v-or))))
+;						(v-op-2 (append v-op (list (car v-op)))))
+;
+;				(cons 
+;				 opposed
+;				 (loop 
+;						for ctrl in (range 0 (length v-or))
+;						for x on v-or-2
+;						for y on v-op-2
+;
+;							; FIXME
+;							; swap the order of the y-face vertices.
+;							; maybe will be dropped after we flip the face?
+;						collect (make-face-l (list (first x) (second x) (second y) (first y)))
+;							))))))
 
 ; TODO
 ; from an origin and a "walker", make a regular polygon.

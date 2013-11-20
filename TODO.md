@@ -11,3 +11,8 @@
 
 * mirroring 
 
+----
+
+Operations
+
+* Merge selected vertices (at center, at point, collapse)

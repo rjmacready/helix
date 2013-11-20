@@ -1,4 +1,4 @@
 
 
-(with-space (:canonical (:translate #v(1 1) :rotate (:z PI)))
+(with-space (:canonical (:center #v(1 1)))
 	(print 'hey))
